@@ -1,15 +1,21 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/adrg/strutil"
+	"github.com/adrg/strutil/metrics"
 	"github.com/gocolly/colly/v2"
+	"github.com/montanaflynn/stats"
 )
 
 // this application can work as one of the agents' actuators
@@ -20,7 +26,7 @@ import (
 type Item struct {
 	Title       string //colocar anotacao de len
 	Description string
-	Price       string
+	Price       float64
 	User        string
 	// UserRating  string
 	Amount int
@@ -31,6 +37,8 @@ func main() {
 	c := colly.NewCollector(
 		colly.UserAgent("Mozilla/5.0"),
 	)
+
+	itens := []Item{}
 
 	c.WithTransport(&http.Transport{
 		Proxy: http.ProxyFromEnvironment,
@@ -54,6 +62,7 @@ func main() {
 		log.Println("Starting crawler")
 		productLink := e.Attr("href")
 		//e.Request.Visit(productLink)
+		log.Println("Visiting item: ", productLink)
 		detailCollector.Visit(productLink)
 
 	})
@@ -70,36 +79,86 @@ func main() {
 		new := e.ChildText(".ui-pdp-subtitle")
 		item := Item{}
 		item.Title = title
-		item.Price = price
+		priceF, _ := strconv.ParseFloat(price, 32)
+
+		item.Price = float64(priceF) / float64(100)
 		item.User = user
 
 		item.Amount, _ = strconv.Atoi(strings.Split(amount, " ")[0])
+
+		itens = append(itens, item)
 
 		item.New = strings.Contains(new, "Novo")
 		log.Println(item)
 	})
 
-	// detailCollector.OnHTML("h1.ui-pdp-title", func(e *colly.HTMLElement) {
-	// 	// el := e.Request.Visit(e.Attr("ol"))
-	// 	// log.Println(el)
-	// 	log.Println("Visiting product", e)
+	detailCollector.OnHTML("h1.ui-pdp-title", func(e *colly.HTMLElement) {
+		// el := e.Request.Visit(e.Attr("ol"))
+		// log.Println(el)
+		log.Println("Visiting product", e)
 
-	// 	product := Item{}
-	// 	product.Title = e.Text //ui-pdp-title
+		product := Item{}
+		product.Title = e.Text //ui-pdp-title
 
-	// })
+	})
 
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("Visiting", r.URL)
 	})
 
-	term := "gtx-1060"
-	site := "https://lista.mercadolivre.com.br/"
-	displayMode := "_DisplayType_LF"
+	// term := "lg k10"
+	// site := "https://lista.mercadolivre.com.br/"
+	// displayMode := "_DisplayType_LF"
+	// // statisticaaa()
+	// err := c.Visit(site + term + displayMode)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// results, _ := json.MarshalIndent(itens, "", " ")
 
-	err := c.Visit(site + term + displayMode)
+	// _ = ioutil.WriteFile("results.json", results, 0644)
+
+	data, err := ioutil.ReadFile("results.json")
+
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
+
+	json.Unmarshal(data, &itens)
+	removeOutliers(&itens)
+	for i := 0; i < len(itens)/2; i++ {
+		for j := 1; j < len(itens)/2; j++ {
+			similarity := strutil.Similarity(itens[i].Title, itens[j].Title, metrics.NewHamming())
+			log.Println("Similarity ", itens[i].Title, itens[j].Title, similarity)
+		}
+	}
+
+}
+
+func removeOutliers(itens *[]Item) []Item {
+
+	data := []float64{}
+	for _, v := range *itens {
+		data = append(data, v.Price)
+	}
+
+	std, _ := stats.StandardDeviation(data)
+	mean, _ := stats.Mean(data)
+	log.Println(std)
+	q, _ := stats.Quartile(data)
+	log.Println(q)
+	cleanedData := []Item{}
+	for _, v := range *itens {
+		if math.Abs(v.Price) > math.Abs(mean-0.5*std) && math.Abs(v.Price) < math.Abs(mean+0.5*std) {
+			cleanedData = append(cleanedData, v)
+		}
+	}
+
+	log.Println(len(cleanedData))
+	for _, v := range cleanedData {
+		log.Println(v.Price)
+
+	}
+	return cleanedData
 
 }
