@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -12,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adrg/strutil"
-	"github.com/adrg/strutil/metrics"
 	"github.com/gocolly/colly/v2"
 	"github.com/montanaflynn/stats"
 )
@@ -32,6 +31,8 @@ type Item struct {
 	Amount int
 	New    bool
 }
+
+const threshold float64 = 1.0
 
 func main() {
 	c := colly.NewCollector(
@@ -106,17 +107,18 @@ func main() {
 		fmt.Println("Visiting", r.URL)
 	})
 
-	// term := "lg k10"
-	// site := "https://lista.mercadolivre.com.br/"
-	// displayMode := "_DisplayType_LF"
-	// // statisticaaa()
-	// err := c.Visit(site + term + displayMode)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// results, _ := json.MarshalIndent(itens, "", " ")
+	term := flag.String("term", "item", "term to be used during web-scraping")
+	flag.Parse()
+	fmt.Println(*term)
+	site := "https://lista.mercadolivre.com.br/"
+	displayMode := "_DisplayType_LF"
+	err := c.Visit(site + *(term) + displayMode)
+	if err != nil {
+		fmt.Println(err)
+	}
+	results, _ := json.MarshalIndent(itens, "", " ")
 
-	// _ = ioutil.WriteFile("results.json", results, 0644)
+	_ = ioutil.WriteFile("results.json", results, 0644)
 
 	data, err := ioutil.ReadFile("results.json")
 
@@ -125,13 +127,11 @@ func main() {
 	}
 
 	json.Unmarshal(data, &itens)
-	removeOutliers(&itens)
-	for i := 0; i < len(itens)/2; i++ {
-		for j := 1; j < len(itens)/2; j++ {
-			similarity := strutil.Similarity(itens[i].Title, itens[j].Title, metrics.NewHamming())
-			log.Println("Similarity ", itens[i].Title, itens[j].Title, similarity)
-		}
-	}
+	finalData := removeOutliers(&itens)
+
+	perceptions, _ := json.MarshalIndent(finalData, "", " ")
+
+	_ = ioutil.WriteFile("perceptions.json", perceptions, 0644)
 
 }
 
@@ -149,7 +149,7 @@ func removeOutliers(itens *[]Item) []Item {
 	log.Println(q)
 	cleanedData := []Item{}
 	for _, v := range *itens {
-		if math.Abs(v.Price) > math.Abs(mean-0.5*std) && math.Abs(v.Price) < math.Abs(mean+0.5*std) {
+		if math.Abs(v.Price) > math.Abs(mean-threshold*std) && math.Abs(v.Price) < math.Abs(mean+threshold*std) {
 			cleanedData = append(cleanedData, v)
 		}
 	}
