@@ -25,7 +25,7 @@ import (
 // learn and improve an agent strategy, for instance
 
 type Item struct {
-	Title       string //colocar anotacao de len
+	Title       string
 	Description string
 	Price       float64
 	User        string
