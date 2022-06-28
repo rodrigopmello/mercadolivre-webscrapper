@@ -1,6 +1,7 @@
-# ml-crawler
+# 
+mercadolivre-webscrapper
 
-This project is a web-crawler responsible for retrieving information about an item from one of the biggest e-commerce platforms, MercadoLivre. To develop this web-crawler the following libraries were employed:
+This project is a web-scrapper responsible for retrieving information about an item from one of the biggest e-commerce platforms, MercadoLivre. To develop this web-scrapper the following libraries were employed:
 
 ```
 1. colly - to extract information from the e-commerce platform;
@@ -8,7 +9,7 @@ This project is a web-crawler responsible for retrieving information about an it
 ```
 
 
-The web-crawler works as one of the agents' actuators, responsible for retrieving information about some specific item. Following is a quick explanation of how it can work during the agent's reasoning cycle:
+The web-scrapper works as one of the agents' actuators, responsible for retrieving information about some specific item. Following is a quick explanation of how it can work during the agent's reasoning cycle:
 ```
 1. Agent's sensors retrieve data about a specific item from the web. 
 2. Neural network can learn and improve an existing plan, which could improve an agent's strategy.
